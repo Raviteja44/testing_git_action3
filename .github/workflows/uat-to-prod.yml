@@ -1,0 +1,37 @@
+name: UAT to Prod Promotion
+
+on:
+  pull_request:
+    branches: [uat]
+    types: [closed]
+
+jobs:
+  create-prod-pr:
+    if: github.event.pull_request.merged == true
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        token: ${{ secrets.PAT_TOKEN }}
+        fetch-depth: 0
+    
+    - name: Create PR to Prod
+      run: |
+        git config --global user.name 'github-actions[bot]'
+        git config --global user.email 'github-actions[bot]@users.noreply.github.com'
+        
+        # Check if PR already exists
+        PR_EXISTS=$(gh pr list --base prod --head uat --state open | wc -l)
+        if [ $PR_EXISTS -eq 0 ]; then
+          echo "Creating PR from uat to prod"
+          gh pr create \
+            --base prod \
+            --head uat \
+            --title "Promote changes from UAT to PROD - ${{ github.sha }}" \
+            --body "Automated PR: Changes ready for Production deployment. Requires approval."
+        else
+          echo "PR from uat to prod already exists"
+        fi
+      env:
+        GH_TOKEN: ${{ secrets.PAT_TOKEN }}
